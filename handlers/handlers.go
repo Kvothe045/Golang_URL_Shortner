@@ -3,7 +3,6 @@ package handlers
 
 import (
 	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"net/http"
 
@@ -15,9 +14,27 @@ type URL struct {
 }
 
 func generateShortCode(url string) string {
+	//base62
+	const charset = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	hash := sha256.Sum256([]byte(url))
 
-	h := sha256.Sum256([]byte(url))
-	return hex.EncodeToString(h[:])[:6]
+	var num int64
+	for i := 0; i < 8; i++ {
+		num = (num << 8) | int64(hash[i])
+	}
+
+	if num < 0 {
+		num = -num
+	}
+
+	shortCode := ""
+	for num > 0 {
+		shortCode = string(charset[num%62]) + shortCode
+		num /= 62
+	}
+	shortCode = shortCode[:6]
+	return shortCode
+
 }
 
 type URLStore interface {
@@ -33,7 +50,6 @@ func GetEncodedURL(db URLStore, url string) string {
 		return code
 	}
 
-	code = generateShortCode(url)
 	db.Save(url, code)
 	return code
 }
@@ -73,6 +89,6 @@ func HandleDecodingURL(db URLStore) gin.HandlerFunc {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
 		}
-		c.Redirect(http.StatusTemporaryRedirect, url)
+		c.Redirect(http.StatusFound, url)
 	}
 }
