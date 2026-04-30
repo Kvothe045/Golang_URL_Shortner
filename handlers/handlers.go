@@ -1,4 +1,3 @@
-// url_shortner/handlers/handlers.go
 package handlers
 
 import (
